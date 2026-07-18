@@ -148,44 +148,52 @@ async function copyField(id: string, field: string) {
 
 <template>
   <div class="view">
-    <div class="toolbar">
-      <input
-        v-model="query"
-        class="input"
-        type="text"
-        placeholder="Search…"
-        data-testid="search"
-      />
-      <button class="btn primary" data-testid="add-secret" @click="openNew">＋ Add</button>
-    </div>
-
-    <div class="secret-list" data-testid="secret-list">
-      <div v-if="secrets.length === 0" class="empty-list">
-        No secrets{{ query ? " match your search" : " yet — add your first one" }}.
+    <template v-if="!editor.open">
+      <div class="toolbar">
+        <input
+          v-model="query"
+          class="input"
+          type="text"
+          placeholder="Search…"
+          data-testid="search"
+        />
+        <button class="btn primary" data-testid="add-secret" @click="openNew">＋ Add</button>
       </div>
-      <button
-        v-for="s in secrets"
-        :key="s.id"
-        class="secret-row"
-        :data-testid="'secret-' + s.id"
-        @click="openSecret(s.id)"
-      >
-        <span class="title">{{ s.title }}</span>
-        <span v-if="s.username" class="sub">{{ s.username }}</span>
-        <span v-if="s.category_id" class="chip">{{ catName(s.category_id) }}</span>
-      </button>
-    </div>
 
-    <div v-if="editor.open" class="editor-overlay" @click.self="editor.open = false">
-      <div class="editor">
-        <div class="editor-head">
-          <h3>{{ editor.id ? "Edit secret" : "New secret" }}</h3>
-          <button class="btn icon" data-testid="close-editor" @click="editor.open = false">
-            ✕
-          </button>
+      <div class="secret-list" data-testid="secret-list">
+        <div v-if="secrets.length === 0" class="empty-list">
+          No secrets{{ query ? " match your search" : " yet — add your first one" }}.
         </div>
+        <button
+          v-for="s in secrets"
+          :key="s.id"
+          class="secret-row"
+          :data-testid="'secret-' + s.id"
+          @click="openSecret(s.id)"
+        >
+          <span class="title">{{ s.title }}</span>
+          <span v-if="s.username" class="sub">{{ s.username }}</span>
+          <span v-if="s.category_id" class="chip">{{ catName(s.category_id) }}</span>
+        </button>
+      </div>
+    </template>
 
-        <div class="field">
+    <!-- Full-window editor view. NEVER a side drawer (family rule, 18/jul/2026):
+         the form owns the whole window, with a back button. -->
+    <div v-else class="editor-page">
+      <div class="view-title">
+        <button
+          class="btn icon"
+          data-testid="close-editor"
+          title="Back to the list"
+          @click="editor.open = false"
+        >
+          ←
+        </button>
+        {{ editor.id ? "Edit secret" : "New secret" }}
+      </div>
+
+      <div class="field">
           <label>Title *</label>
           <input v-model="editor.title" class="input" data-testid="edit-title" autofocus />
         </div>
@@ -251,31 +259,28 @@ async function copyField(id: string, field: string) {
           </select>
         </div>
 
-        <p v-if="editor.error" class="error-text" data-testid="editor-error">
-          {{ editor.error }}
-        </p>
+      <p v-if="editor.error" class="error-text" data-testid="editor-error">
+        {{ editor.error }}
+      </p>
 
-        <div class="row" style="margin-top: auto; padding-top: 14px">
-          <button class="btn primary" style="flex: 1" data-testid="save-secret" @click="save">
-            Save
-          </button>
-          <button
-            v-if="editor.id && !editor.confirmingDelete"
-            class="btn danger"
-            data-testid="delete-secret"
-            @click="del"
-          >
-            Delete
-          </button>
-          <button
-            v-if="editor.id && editor.confirmingDelete"
-            class="btn danger"
-            data-testid="confirm-delete"
-            @click="del"
-          >
-            Really delete?
-          </button>
-        </div>
+      <div class="row" style="padding-top: 14px">
+        <button class="btn primary" data-testid="save-secret" @click="save">Save</button>
+        <button
+          v-if="editor.id && !editor.confirmingDelete"
+          class="btn danger"
+          data-testid="delete-secret"
+          @click="del"
+        >
+          Delete
+        </button>
+        <button
+          v-if="editor.id && editor.confirmingDelete"
+          class="btn danger"
+          data-testid="confirm-delete"
+          @click="del"
+        >
+          Really delete?
+        </button>
       </div>
     </div>
 

@@ -145,7 +145,7 @@ func (a *App) appInfo() any {
 					Role:        "view",
 					Name:        "Vault",
 					ID:          "vault",
-					Description: "Main screen while unlocked: search, list, and a detail editor.",
+					Description: "Main screen while unlocked: search + list. Opening a secret (or add-secret) switches to a FULL-WINDOW editor view that replaces the list; close-editor returns to it.",
 					Children: []axNode{
 						{Role: "textbox", Name: "Search", Testid: "search", Action: "filter the list by title/username/url", Risk: riskSafe},
 						{Role: "button", Name: "Add secret", Testid: "add-secret", Action: "open the editor with an empty secret", Risk: riskSafe},

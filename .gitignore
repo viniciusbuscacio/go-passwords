@@ -1,0 +1,15 @@
+# Binaries and build output
+/build/bin/
+/dist/
+*.exe
+*.gpw
+*.gpw.tmp
+*.gpw.lock
+
+# Frontend (when the Wails GUI lands)
+node_modules/
+frontend/dist/
+
+# OS noise
+.DS_Store
+Thumbs.db

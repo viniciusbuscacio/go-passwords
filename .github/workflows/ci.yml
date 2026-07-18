@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test ./...
+      - name: Build CLI
+        run: go build -o gpw${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/go-pw-cli
+
+  # The recovery scripts are independent implementations of the vault format.
+  # They must always be able to open a vault written by the current code —
+  # this job keeps them from silently rotting.
+  recover:
+    name: recovery scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Create fixture vault with the CLI
+        env:
+          GO_PW_VAULT: fixture.gpw
+          GO_PW_MASTER_PASSWORD: ci-fixture-password
+        run: |
+          go run ./cmd/go-pw-cli init
+          go run ./cmd/go-pw-cli set "CI Fixture" --username tester --password s3cr3t-value
+      - name: recover.go opens it
+        run: |
+          echo "ci-fixture-password" | go run ./tools/recover fixture.gpw > out-go.json
+          grep -q "CI Fixture" out-go.json && grep -q "s3cr3t-value" out-go.json
+      - name: recover.py opens it
+        run: |
+          pip install --quiet argon2-cffi cryptography
+          echo "ci-fixture-password" | python tools/recover/recover.py fixture.gpw > out-py.json
+          grep -q "CI Fixture" out-py.json && grep -q "s3cr3t-value" out-py.json
+      - name: Wrong password fails clean
+        run: |
+          if echo "wrong" | go run ./tools/recover fixture.gpw; then
+            echo "recover.go accepted a wrong password" && exit 1
+          fi

@@ -1,0 +1,513 @@
+/* go-passwords — visual identity per go-design (github.com/viniciusbuscacio/go-design):
+   Windows 11 / Fluent look, canonical tokens, dark default. */
+
+:root,
+:root[data-theme="dark"] {
+  --bg: #202020;
+  --bg-rgb: 32 32 32;
+  --bg-alpha: 1;
+  --titlebar-fg: #d6d6d6;
+  --screen-fg: #ffffff;
+  --key-bg: #323232;
+  --key-bg-hover: #3d3d3d;
+  --key-bg-active: #2a2a2a;
+  --key-fg: #ffffff;
+  --key-fg-dim: #d0d0d0;
+  --accent: #4cc2ff;
+  --accent-hover: #48b2e8;
+  --accent-fg: #003a5c;
+  --disabled-fg: #6a6a6a;
+  --border: #333333;
+  --panel-bg: #2b2b2b;
+  --panel-hover: #333333;
+  --input-bg: #1b1b1b;
+  --muted: #9a9a9a;
+  --danger: #ff99a4;
+  --hover-overlay: rgba(255, 255, 255, 0.06);
+  --switch-stroke: rgba(255, 255, 255, 0.6);
+  --switch-stroke-hover: rgba(255, 255, 255, 0.85);
+  --switch-thumb: #d6d6d6;
+  --scroll-thumb: rgba(255, 255, 255, 0.28);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.45);
+}
+
+:root[data-theme="light"] {
+  --bg: #f3f3f3;
+  --bg-rgb: 243 243 243;
+  --titlebar-fg: #1a1a1a;
+  --screen-fg: #1a1a1a;
+  --key-bg: #ffffff;
+  --key-bg-hover: #f0f0f0;
+  --key-bg-active: #e6e6e6;
+  --key-fg: #1a1a1a;
+  --key-fg-dim: #333333;
+  --accent: #005fb8;
+  --accent-hover: #0a6cc8;
+  --accent-fg: #ffffff;
+  --disabled-fg: #a0a0a0;
+  --border: #e2e2e2;
+  --panel-bg: #ffffff;
+  --panel-hover: #f4f4f4;
+  --input-bg: #ffffff;
+  --muted: #757575;
+  --danger: #c42b1c;
+  --hover-overlay: rgba(0, 0, 0, 0.05);
+  --switch-stroke: rgba(0, 0, 0, 0.45);
+  --switch-stroke-hover: rgba(0, 0, 0, 0.65);
+  --switch-thumb: #555555;
+  --scroll-thumb: rgba(0, 0, 0, 0.28);
+  --scroll-thumb-hover: rgba(0, 0, 0, 0.45);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+  background: transparent;
+  color: var(--screen-fg);
+  user-select: none;
+  overflow: hidden;
+}
+
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: rgb(var(--bg-rgb) / var(--bg-alpha, 1));
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+/* Title bar ---------------------------------------------------------------- */
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 10px;
+  flex: 1;
+  color: var(--titlebar-fg);
+}
+
+.app-glyph {
+  width: 18px;
+  height: 18px;
+}
+
+.titlebar-title {
+  font-size: 12px;
+  color: var(--titlebar-fg);
+}
+
+.win-controls {
+  display: flex;
+  height: 100%;
+}
+
+.win-btn {
+  width: 46px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--titlebar-fg);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.win-btn:hover {
+  background: var(--hover-overlay);
+}
+
+.win-btn.close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.ctrl-icon {
+  width: 16px;
+  height: 16px;
+}
+.ctrl-icon.sq {
+  width: 14px;
+  height: 14px;
+}
+
+/* View shell --------------------------------------------------------------- */
+.view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+}
+
+.view-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Shared controls ----------------------------------------------------------- */
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-bottom-color: var(--muted);
+  border-radius: 5px;
+  background: var(--input-bg);
+  color: var(--key-fg);
+  font-size: 13px;
+  outline: none;
+}
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 7px;
+}
+.textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--key-bg);
+  color: var(--key-fg);
+  padding: 7px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--key-bg-hover);
+}
+.btn:active:not(:disabled) {
+  background: var(--key-bg-active);
+}
+.btn:disabled {
+  color: var(--disabled-fg);
+  cursor: default;
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.btn.danger {
+  color: var(--danger);
+}
+.btn.icon {
+  padding: 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.field label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.row .input {
+  flex: 1;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+.mono {
+  font-family: "Cascadia Mono", Consolas, "JetBrains Mono", monospace;
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.panel h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+/* Unlock view --------------------------------------------------------------- */
+.unlock-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.unlock-card {
+  width: 360px;
+  max-width: 92%;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+}
+.unlock-glyph {
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+  margin: 0 auto 10px;
+  display: block;
+}
+.unlock-card h2 {
+  text-align: center;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+.vault-path {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  flex: 1;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+/* Vault view ---------------------------------------------------------------- */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.secret-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  min-height: 0;
+}
+.secret-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--key-fg);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+}
+.secret-row:last-child {
+  border-bottom: none;
+}
+.secret-row:hover {
+  background: var(--panel-hover);
+}
+.secret-row .title {
+  font-weight: 600;
+}
+.secret-row .sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+.secret-row .chip {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+.empty-list {
+  padding: 30px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Editor drawer ------------------------------------------------------------- */
+.editor-overlay {
+  position: fixed;
+  inset: 32px 0 0 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 50;
+}
+.editor {
+  width: 380px;
+  max-width: 100%;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.editor-head h3 {
+  font-size: 15px;
+}
+
+/* Settings ------------------------------------------------------------------ */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+.setting-row + .setting-row {
+  border-top: 1px solid var(--border);
+}
+
+/* Fluent-style switch (family pattern) */
+.switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--switch-stroke);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.switch:hover {
+  border-color: var(--switch-stroke-hover);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--switch-thumb);
+  transition: left 0.12s ease;
+}
+.switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.switch.on::after {
+  left: 23px;
+  background: var(--accent-fg);
+}
+
+table.simple {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+table.simple td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+table.simple tr:last-child td {
+  border-bottom: none;
+}
+
+.toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  color: var(--key-fg);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}

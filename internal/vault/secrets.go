@@ -145,14 +145,14 @@ func (v *Vault) ListCategories() []Category {
 // legible as tints on the family's dark and light themes. Auto-assign order
 // keeps the first few categories maximally distinct.
 var CategoryPalette = []string{
-	"#4cc2ff", // azul (accent)
-	"#3fbf6f", // verde
-	"#f7a350", // laranja
-	"#c58fff", // roxo
+	"#4cc2ff", // blue (accent)
+	"#3fbf6f", // green
+	"#f7a350", // orange
+	"#c58fff", // purple
 	"#f47068", // coral
 	"#4dd0c4", // teal
-	"#f2c94c", // dourado
-	"#ff7eb6", // rosa
+	"#f2c94c", // gold
+	"#ff7eb6", // pink
 }
 
 // AddCategory creates a category. An empty color auto-assigns the next

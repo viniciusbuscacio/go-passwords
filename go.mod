@@ -5,6 +5,7 @@ go 1.26.4
 require (
 	github.com/google/uuid v1.6.0
 	github.com/viniciusbuscacio/go-apiserver v0.1.0
+	github.com/viniciusbuscacio/go-updates v0.1.0
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/term v0.45.0

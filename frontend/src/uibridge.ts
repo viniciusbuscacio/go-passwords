@@ -39,7 +39,15 @@ function collectState() {
     controls,
   };
 
-  for (const t of ["vault-path", "unlock-error", "editor-error", "status", "app-version"]) {
+  for (const t of [
+    "vault-path",
+    "unlock-error",
+    "editor-error",
+    "status",
+    "app-version",
+    "update-status",
+    "agent-instructions",
+  ]) {
     const v = text(t);
     if (v !== undefined) state[t.replace(/-/g, "_")] = v;
   }
@@ -56,6 +64,11 @@ function collectState() {
       (td.textContent ?? "").trim(),
     );
   }
+
+  const toasts = Array.from(document.querySelectorAll('[data-testid="toast-item"]')).map((n) =>
+    (n.textContent ?? "").replace(/✕$/, "").trim(),
+  );
+  if (toasts.length) state.toasts = toasts;
 
   const inputs: Record<string, string> = {};
   document

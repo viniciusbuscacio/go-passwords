@@ -6,13 +6,17 @@ import {config} from '../models';
 
 export function APIState():Promise<main.APIStatus>;
 
-export function AddAllowlistEntry(arg1:string):Promise<void>;
+export function AddAllowlistEntry(arg1:string):Promise<Array<string>>;
 
 export function AddCategory(arg1:string):Promise<vault.Category>;
 
 export function AuditLog():Promise<Array<vault.AuditEntry>>;
 
+export function CategoryPalette():Promise<Array<string>>;
+
 export function ChangeMasterPassword(arg1:string,arg2:string):Promise<void>;
+
+export function CheckForUpdates():Promise<main.UpdateInfo>;
 
 export function CopySecretField(arg1:string,arg2:string):Promise<void>;
 
@@ -26,13 +30,17 @@ export function ExportVault():Promise<string>;
 
 export function GeneratePassword(arg1:number,arg2:boolean):Promise<string>;
 
-export function GetAPIKey():Promise<string>;
+export function GetAPIStatus():Promise<main.APIStatus>;
 
 export function GetSecret(arg1:string):Promise<vault.Secret>;
 
 export function GetSettings():Promise<config.Config>;
 
+export function GetUpdateInfo():Promise<main.UpdateInfo>;
+
 export function ImportVault():Promise<number>;
+
+export function InstallUpdate():Promise<void>;
 
 export function IsUnlocked():Promise<boolean>;
 
@@ -44,7 +52,11 @@ export function ListSecrets(arg1:string):Promise<Array<vault.Secret>>;
 
 export function LockVault():Promise<void>;
 
-export function RemoveAllowlistEntry(arg1:string):Promise<void>;
+export function RecentVaults():Promise<Array<string>>;
+
+export function RemindUpdateLater():Promise<void>;
+
+export function RemoveAllowlistEntry(arg1:string):Promise<Array<string>>;
 
 export function RenameCategory(arg1:string,arg2:string):Promise<void>;
 
@@ -60,9 +72,25 @@ export function SetAPIAutoStart(arg1:boolean):Promise<void>;
 
 export function SetAutoLock(arg1:boolean,arg2:number):Promise<void>;
 
+export function SetCategoryColor(arg1:string,arg2:string):Promise<void>;
+
+export function SetHTTPS(arg1:boolean):Promise<main.APIStatus>;
+
+export function SetOpacity(arg1:number):Promise<void>;
+
 export function SetTheme(arg1:string):Promise<void>;
 
-export function ToggleServer():Promise<main.APIStatus>;
+export function SetToastSeconds(arg1:number):Promise<void>;
+
+export function SetUpdateAutoCheck(arg1:boolean):Promise<void>;
+
+export function ShuffleAPIPort():Promise<main.APIStatus>;
+
+export function SkipUpdateVersion():Promise<void>;
+
+export function StartAPIServer():Promise<main.APIStatus>;
+
+export function StopAPIServer():Promise<main.APIStatus>;
 
 export function UIAck(arg1:string,arg2:string):Promise<void>;
 

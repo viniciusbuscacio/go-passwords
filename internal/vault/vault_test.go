@@ -23,7 +23,7 @@ func newTestVault(t *testing.T) *Vault {
 
 func TestRoundTrip(t *testing.T) {
 	v := newTestVault(t)
-	cat, err := v.AddCategory("Banks", "cli")
+	cat, err := v.AddCategory("Banks", "", "cli")
 	if err != nil {
 		t.Fatalf("AddCategory: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestSecretCRUDAndSearch(t *testing.T) {
 
 func TestCategoryDeleteDetachesSecrets(t *testing.T) {
 	v := newTestVault(t)
-	cat, _ := v.AddCategory("Work", "cli")
+	cat, _ := v.AddCategory("Work", "", "cli")
 	s, _ := v.AddSecret(SecretInput{Title: "VPN", CategoryID: cat.ID}, "cli")
 	if err := v.DeleteCategory(cat.ID, "cli"); err != nil {
 		t.Fatal(err)
@@ -240,7 +240,7 @@ func TestAuditNeverStoresContent(t *testing.T) {
 
 func TestExportImport(t *testing.T) {
 	v := newTestVault(t)
-	cat, _ := v.AddCategory("Cloud", "cli")
+	cat, _ := v.AddCategory("Cloud", "", "cli")
 	v.AddSecret(SecretInput{Title: "One", Password: "1", CategoryID: cat.ID}, "cli")
 	v.AddSecret(SecretInput{Title: "Two", Password: "2"}, "cli")
 	dump, err := v.Export("cli")

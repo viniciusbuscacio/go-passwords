@@ -2,16 +2,23 @@ export namespace config {
 	
 	export class Config {
 	    theme: string;
+	    opacity: number;
 	    autoLockEnabled: boolean;
 	    autoLockMinutes: number;
 	    lastVault: string;
+	    recentVaults: string[];
 	    generatorLength: number;
 	    generatorSymbols: boolean;
+	    toastSeconds: number;
 	    apiAutoStart: boolean;
 	    apiPort: number;
 	    apiKey: string;
 	    apiAllowlist: string[];
 	    apiHttps: boolean;
+	    updateAutoCheck: boolean;
+	    updateSkippedVersion: string;
+	    updateLaterUntil: string;
+	    updateLastAutoCheck: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -20,16 +27,23 @@ export namespace config {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.theme = source["theme"];
+	        this.opacity = source["opacity"];
 	        this.autoLockEnabled = source["autoLockEnabled"];
 	        this.autoLockMinutes = source["autoLockMinutes"];
 	        this.lastVault = source["lastVault"];
+	        this.recentVaults = source["recentVaults"];
 	        this.generatorLength = source["generatorLength"];
 	        this.generatorSymbols = source["generatorSymbols"];
+	        this.toastSeconds = source["toastSeconds"];
 	        this.apiAutoStart = source["apiAutoStart"];
 	        this.apiPort = source["apiPort"];
 	        this.apiKey = source["apiKey"];
 	        this.apiAllowlist = source["apiAllowlist"];
 	        this.apiHttps = source["apiHttps"];
+	        this.updateAutoCheck = source["updateAutoCheck"];
+	        this.updateSkippedVersion = source["updateSkippedVersion"];
+	        this.updateLaterUntil = source["updateLaterUntil"];
+	        this.updateLastAutoCheck = source["updateLastAutoCheck"];
 	    }
 	}
 
@@ -55,6 +69,36 @@ export namespace main {
 	        this.url = source["url"];
 	        this.tls = source["tls"];
 	        this.fingerprint = source["fingerprint"];
+	    }
+	}
+	export class UpdateInfo {
+	    checking: boolean;
+	    installing: boolean;
+	    progress: string;
+	    available: boolean;
+	    version: string;
+	    notes: string;
+	    current: string;
+	    checkedAt: string;
+	    error: string;
+	    notify: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.checking = source["checking"];
+	        this.installing = source["installing"];
+	        this.progress = source["progress"];
+	        this.available = source["available"];
+	        this.version = source["version"];
+	        this.notes = source["notes"];
+	        this.current = source["current"];
+	        this.checkedAt = source["checkedAt"];
+	        this.error = source["error"];
+	        this.notify = source["notify"];
 	    }
 	}
 
@@ -83,6 +127,7 @@ export namespace vault {
 	export class Category {
 	    id: string;
 	    name: string;
+	    color?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Category(source);
@@ -92,6 +137,7 @@ export namespace vault {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
+	        this.color = source["color"];
 	    }
 	}
 	export class Secret {

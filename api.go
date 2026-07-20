@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 
 	apiserver "github.com/viniciusbuscacio/go-apiserver"
@@ -60,26 +62,65 @@ func (a *App) startServer() error {
 	})
 }
 
-func (a *App) ToggleServer() (APIStatus, error) {
-	var err error
-	if a.server.Running() {
-		err = a.server.Stop()
-	} else {
-		err = a.startServer()
-	}
+// GetAPIStatus returns the live server status (family API shape).
+func (a *App) GetAPIStatus() APIStatus {
+	return a.APIState()
+}
+
+// StartAPIServer / StopAPIServer back the play button.
+func (a *App) StartAPIServer() (APIStatus, error) {
+	err := a.startServer()
 	return a.APIState(), err
 }
 
-func (a *App) SetAPIAutoStart(on bool) error {
-	a.mu.Lock()
-	a.cfg.APIAutoStart = on
-	cfg := a.cfg
-	a.mu.Unlock()
-	return config.Save(cfg)
+func (a *App) StopAPIServer() (APIStatus, error) {
+	err := a.server.Stop()
+	return a.APIState(), err
 }
 
-func (a *App) GetAPIKey() string {
-	return a.snapshot().APIKey
+// Port range of go-passwords in the family (calc 87xx, notepad 88xx).
+const (
+	portRangeBase = 8900
+	portRangeSpan = 100
+)
+
+// pickFreePort returns a bindable port in the family range, different from
+// current when possible.
+func pickFreePort(current int, host string) int {
+	for i := 0; i < portRangeSpan; i++ {
+		p := portRangeBase + i
+		if p == current {
+			continue
+		}
+		l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, p))
+		if err == nil {
+			l.Close()
+			return p
+		}
+	}
+	return current
+}
+
+// ShuffleAPIPort picks a random free port and restarts the server if running.
+func (a *App) ShuffleAPIPort() (APIStatus, error) {
+	cur := a.snapshot()
+	port := pickFreePort(cur.APIPort, apiserver.BindHost(cur.APIAllowlist))
+	if err := a.mutate(func(c *config.Config) { c.APIPort = port }); err != nil {
+		return a.APIState(), err
+	}
+	return a.APIState(), a.applyIfRunning()
+}
+
+// SetHTTPS toggles TLS and restarts a running server so the change applies.
+func (a *App) SetHTTPS(v bool) (APIStatus, error) {
+	if err := a.mutate(func(c *config.Config) { c.APIHTTPS = v }); err != nil {
+		return a.APIState(), err
+	}
+	return a.APIState(), a.applyIfRunning()
+}
+
+func (a *App) SetAPIAutoStart(on bool) error {
+	return a.mutate(func(c *config.Config) { c.APIAutoStart = on })
 }
 
 func (a *App) RotateAPIKey() (string, error) {
@@ -93,16 +134,18 @@ func (a *App) RotateAPIKey() (string, error) {
 	return cfg.APIKey, a.applyIfRunning()
 }
 
-func (a *App) AddAllowlistEntry(entry string) error {
+// AddAllowlistEntry validates and adds a CIDR, returning the new list.
+func (a *App) AddAllowlistEntry(entry string) ([]string, error) {
 	normalized, err := apiserver.NormalizeCIDR(entry)
 	if err != nil {
-		return err
+		return a.snapshot().APIAllowlist, err
 	}
 	a.mu.Lock()
 	for _, e := range a.cfg.APIAllowlist {
 		if e == normalized {
+			list := a.cfg.APIAllowlist
 			a.mu.Unlock()
-			return nil
+			return list, nil
 		}
 	}
 	list := append(append([]string{}, a.cfg.APIAllowlist...), normalized)
@@ -110,13 +153,20 @@ func (a *App) AddAllowlistEntry(entry string) error {
 	cfg := a.cfg
 	a.mu.Unlock()
 	if err := config.Save(cfg); err != nil {
-		return err
+		return list, err
 	}
-	return a.applyIfRunning()
+	return list, a.applyIfRunning()
 }
 
-func (a *App) RemoveAllowlistEntry(entry string) error {
+// RemoveAllowlistEntry removes a CIDR; the last entry cannot be removed (a
+// keyed server with an empty allowlist would reject everyone).
+func (a *App) RemoveAllowlistEntry(entry string) ([]string, error) {
 	a.mu.Lock()
+	if len(a.cfg.APIAllowlist) <= 1 {
+		list := a.cfg.APIAllowlist
+		a.mu.Unlock()
+		return list, fmt.Errorf("cannot remove the last allowlist entry")
+	}
 	list := make([]string, 0, len(a.cfg.APIAllowlist))
 	for _, e := range a.cfg.APIAllowlist {
 		if e != entry {
@@ -127,9 +177,9 @@ func (a *App) RemoveAllowlistEntry(entry string) error {
 	cfg := a.cfg
 	a.mu.Unlock()
 	if err := config.Save(cfg); err != nil {
-		return err
+		return list, err
 	}
-	return a.applyIfRunning()
+	return list, a.applyIfRunning()
 }
 
 func (a *App) applyIfRunning() error {
@@ -155,6 +205,18 @@ func (a *App) registerAPI() {
 	a.server.HandleExtra("/v1/generate", a.handleGenerate)
 	a.server.HandleExtra("/v1/export", a.handleExport)
 	a.server.HandleExtra("/v1/audit", a.handleAudit)
+	a.server.HandleExtra("/v1/update", a.handleUpdate)
+}
+
+// decodeBody decodes a JSON request body without DecodeJSON's POST-only
+// method check, for PUT endpoints. Same 1 MiB cap and structured error.
+func decodeBody(w http.ResponseWriter, r *http.Request, req any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		apiserver.WriteErr(w, http.StatusBadRequest, "invalid_json", "request body is not valid JSON")
+		return false
+	}
+	return true
 }
 
 // apiVault returns the unlocked vault or writes 423 Locked.
@@ -278,7 +340,7 @@ func (a *App) handleSecretByID(w http.ResponseWriter, r *http.Request) {
 		apiserver.WriteJSON(w, http.StatusOK, s)
 	case http.MethodPut:
 		var in vault.SecretInput
-		if !apiserver.DecodeJSON(w, r, &in) {
+		if !decodeBody(w, r, &in) {
 			return
 		}
 		s, err := v.UpdateSecret(id, in, actorAPI)
@@ -318,12 +380,13 @@ func (a *App) handleCategories(w http.ResponseWriter, r *http.Request) {
 		apiserver.WriteJSON(w, http.StatusOK, v.ListCategories())
 	case http.MethodPost:
 		var req struct {
-			Name string `json:"name"`
+			Name  string `json:"name"`
+			Color string `json:"color"`
 		}
 		if !apiserver.DecodeJSON(w, r, &req) {
 			return
 		}
-		c, err := v.AddCategory(req.Name, actorAPI)
+		c, err := v.AddCategory(req.Name, req.Color, actorAPI)
 		if err != nil {
 			apiserver.WriteErr(w, http.StatusUnprocessableEntity, "invalid_category", err.Error())
 			return
@@ -348,14 +411,23 @@ func (a *App) handleCategoryByID(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPut:
 		var req struct {
-			Name string `json:"name"`
+			Name  string `json:"name"`
+			Color string `json:"color"`
 		}
-		if !apiserver.DecodeJSON(w, r, &req) {
+		if !decodeBody(w, r, &req) {
 			return
 		}
-		if err := v.RenameCategory(id, req.Name, actorAPI); err != nil {
-			apiserver.WriteErr(w, http.StatusNotFound, "not_found", err.Error())
-			return
+		if req.Name != "" {
+			if err := v.RenameCategory(id, req.Name, actorAPI); err != nil {
+				apiserver.WriteErr(w, http.StatusNotFound, "not_found", err.Error())
+				return
+			}
+		}
+		if req.Color != "" {
+			if err := v.SetCategoryColor(id, req.Color, actorAPI); err != nil {
+				apiserver.WriteErr(w, http.StatusNotFound, "not_found", err.Error())
+				return
+			}
 		}
 		if err := v.Save(); err != nil {
 			apiserver.WriteErr(w, http.StatusInternalServerError, "save_failed", err.Error())

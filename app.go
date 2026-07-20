@@ -11,6 +11,7 @@ import (
 	apiserver "github.com/viniciusbuscacio/go-apiserver"
 	"github.com/viniciusbuscacio/go-passwords/internal/config"
 	"github.com/viniciusbuscacio/go-passwords/internal/vault"
+	updater "github.com/viniciusbuscacio/go-updates"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -31,6 +32,20 @@ type App struct {
 	ui     *uiBridge
 
 	lockTimer *time.Timer
+
+	// In-app updater state (update.go): the last check's snapshot and the
+	// release it found, kept so Install doesn't need to re-check.
+	updState   UpdateInfo
+	updRelease *updater.Release
+}
+
+// mutate applies fn to the settings under the lock, then persists the result.
+func (a *App) mutate(fn func(*config.Config)) error {
+	a.mu.Lock()
+	fn(&a.cfg)
+	cfg := a.cfg
+	a.mu.Unlock()
+	return config.Save(cfg)
 }
 
 func NewApp() *App {
@@ -47,6 +62,10 @@ func (a *App) startup(ctx context.Context) {
 	a.cfg = config.Load()
 	cfg := a.cfg
 	a.mu.Unlock()
+	// Sweep the ".old" binary a previous self-update parked, then — if the
+	// user opted in — check for a newer release in the background.
+	a.updateClient().CleanupOld()
+	go a.maybeAutoCheck()
 	if cfg.APIAutoStart {
 		_ = a.startServer()
 	}
@@ -77,10 +96,29 @@ func (a *App) setVault(v *vault.Vault, path string) {
 	a.mu.Lock()
 	a.v = v
 	a.cfg.LastVault = path
+	// Most-recently-used list, deduped, capped at 3.
+	recent := []string{path}
+	for _, p := range a.cfg.RecentVaults {
+		if p != path && len(recent) < 3 {
+			recent = append(recent, p)
+		}
+	}
+	a.cfg.RecentVaults = recent
 	cfg := a.cfg
 	a.mu.Unlock()
 	_ = config.Save(cfg)
 	a.resetLockTimer()
+}
+
+// RecentVaults returns the MRU vault paths that still exist on disk.
+func (a *App) RecentVaults() []string {
+	out := make([]string, 0, 3)
+	for _, p := range a.snapshot().RecentVaults {
+		if _, err := os.Stat(p); err == nil {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // IsUnlocked reports whether a vault is open.
@@ -300,11 +338,27 @@ func (a *App) AddCategory(name string) (vault.Category, error) {
 	if err != nil {
 		return vault.Category{}, err
 	}
-	c, err := v.AddCategory(name, actorGUI)
+	c, err := v.AddCategory(name, "", actorGUI)
 	if err != nil {
 		return vault.Category{}, err
 	}
 	return c, v.Save()
+}
+
+// CategoryPalette exposes the canonical color choices to the frontend.
+func (a *App) CategoryPalette() []string {
+	return vault.CategoryPalette
+}
+
+func (a *App) SetCategoryColor(id, color string) error {
+	v, err := a.current()
+	if err != nil {
+		return err
+	}
+	if err := v.SetCategoryColor(id, color, actorGUI); err != nil {
+		return err
+	}
+	return v.Save()
 }
 
 func (a *App) RenameCategory(id, name string) error {
@@ -430,6 +484,26 @@ func (a *App) SetTheme(theme string) error {
 	cfg := a.cfg
 	a.mu.Unlock()
 	return config.Save(cfg)
+}
+
+func (a *App) SetOpacity(percent int) error {
+	if percent < 20 {
+		percent = 20
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	return a.mutate(func(c *config.Config) { c.Opacity = percent })
+}
+
+func (a *App) SetToastSeconds(sec int) error {
+	if sec < 0 {
+		sec = 0
+	}
+	if sec > 60 {
+		sec = 60
+	}
+	return a.mutate(func(c *config.Config) { c.ToastSeconds = sec })
 }
 
 func (a *App) SetAutoLock(enabled bool, minutes int) error {

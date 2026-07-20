@@ -11,12 +11,15 @@ import (
 )
 
 type Config struct {
-	Theme            string `json:"theme"` // "dark" | "light"
+	Theme            string `json:"theme"`   // "dark" | "light"
+	Opacity          int    `json:"opacity"` // window opacity, 20..100
 	AutoLockEnabled  bool   `json:"autoLockEnabled"`
 	AutoLockMinutes  int    `json:"autoLockMinutes"`
-	LastVault        string `json:"lastVault"`
+	LastVault        string   `json:"lastVault"`
+	RecentVaults     []string `json:"recentVaults"` // MRU, max 3
 	GeneratorLength  int    `json:"generatorLength"`
 	GeneratorSymbols bool   `json:"generatorSymbols"`
+	ToastSeconds     int    `json:"toastSeconds"` // toast duration; 0 disables toasts
 
 	// Embedded REST API (go-apiserver). Off by default — a password manager
 	// opens no port the user didn't ask for.
@@ -25,6 +28,13 @@ type Config struct {
 	APIKey       string   `json:"apiKey"`
 	APIAllowlist []string `json:"apiAllowlist"` // CIDRs
 	APIHTTPS     bool     `json:"apiHttps"`
+
+	// In-app updater (go-updates). AutoCheck is opt-in: the app makes no
+	// network call the user didn't ask for.
+	UpdateAutoCheck  bool   `json:"updateAutoCheck"`
+	UpdateSkipped    string `json:"updateSkippedVersion"`
+	UpdateLaterUntil string `json:"updateLaterUntil"`
+	UpdateLastCheck  string `json:"updateLastAutoCheck"`
 }
 
 // DefaultPort range for go-passwords (family: go-calc 87xx, go-notepad 88xx).
@@ -33,10 +43,12 @@ const defaultPort = 8940
 func Default() Config {
 	return Config{
 		Theme:            "dark",
+		Opacity:          100,
 		AutoLockEnabled:  true,
 		AutoLockMinutes:  5,
 		GeneratorLength:  16,
 		GeneratorSymbols: true,
+		ToastSeconds:     3,
 		APIAutoStart:     false,
 		APIPort:          defaultPort,
 		APIKey:           GenerateKey(),
@@ -82,6 +94,15 @@ func Load() Config {
 	_ = json.Unmarshal(raw, &cfg)
 	if cfg.GeneratorLength <= 0 {
 		cfg.GeneratorLength = 16
+	}
+	if cfg.Opacity < 20 || cfg.Opacity > 100 {
+		cfg.Opacity = 100
+	}
+	if cfg.ToastSeconds < 0 {
+		cfg.ToastSeconds = 0
+	}
+	if cfg.ToastSeconds > 60 {
+		cfg.ToastSeconds = 60
 	}
 	if cfg.APIKey == "" {
 		cfg.APIKey = GenerateKey()

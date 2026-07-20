@@ -18,8 +18,16 @@ export function AuditLog() {
   return window['go']['main']['App']['AuditLog']();
 }
 
+export function CategoryPalette() {
+  return window['go']['main']['App']['CategoryPalette']();
+}
+
 export function ChangeMasterPassword(arg1, arg2) {
   return window['go']['main']['App']['ChangeMasterPassword'](arg1, arg2);
+}
+
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
 }
 
 export function CopySecretField(arg1, arg2) {
@@ -46,8 +54,8 @@ export function GeneratePassword(arg1, arg2) {
   return window['go']['main']['App']['GeneratePassword'](arg1, arg2);
 }
 
-export function GetAPIKey() {
-  return window['go']['main']['App']['GetAPIKey']();
+export function GetAPIStatus() {
+  return window['go']['main']['App']['GetAPIStatus']();
 }
 
 export function GetSecret(arg1) {
@@ -58,8 +66,16 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function GetUpdateInfo() {
+  return window['go']['main']['App']['GetUpdateInfo']();
+}
+
 export function ImportVault() {
   return window['go']['main']['App']['ImportVault']();
+}
+
+export function InstallUpdate() {
+  return window['go']['main']['App']['InstallUpdate']();
 }
 
 export function IsUnlocked() {
@@ -80,6 +96,14 @@ export function ListSecrets(arg1) {
 
 export function LockVault() {
   return window['go']['main']['App']['LockVault']();
+}
+
+export function RecentVaults() {
+  return window['go']['main']['App']['RecentVaults']();
+}
+
+export function RemindUpdateLater() {
+  return window['go']['main']['App']['RemindUpdateLater']();
 }
 
 export function RemoveAllowlistEntry(arg1) {
@@ -114,12 +138,44 @@ export function SetAutoLock(arg1, arg2) {
   return window['go']['main']['App']['SetAutoLock'](arg1, arg2);
 }
 
+export function SetCategoryColor(arg1, arg2) {
+  return window['go']['main']['App']['SetCategoryColor'](arg1, arg2);
+}
+
+export function SetHTTPS(arg1) {
+  return window['go']['main']['App']['SetHTTPS'](arg1);
+}
+
+export function SetOpacity(arg1) {
+  return window['go']['main']['App']['SetOpacity'](arg1);
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
-export function ToggleServer() {
-  return window['go']['main']['App']['ToggleServer']();
+export function SetToastSeconds(arg1) {
+  return window['go']['main']['App']['SetToastSeconds'](arg1);
+}
+
+export function SetUpdateAutoCheck(arg1) {
+  return window['go']['main']['App']['SetUpdateAutoCheck'](arg1);
+}
+
+export function ShuffleAPIPort() {
+  return window['go']['main']['App']['ShuffleAPIPort']();
+}
+
+export function SkipUpdateVersion() {
+  return window['go']['main']['App']['SkipUpdateVersion']();
+}
+
+export function StartAPIServer() {
+  return window['go']['main']['App']['StartAPIServer']();
+}
+
+export function StopAPIServer() {
+  return window['go']['main']['App']['StopAPIServer']();
 }
 
 export function UIAck(arg1, arg2) {

@@ -53,10 +53,12 @@ type Secret struct {
 	UpdatedAt  string `json:"updated_at"`
 }
 
-// Category groups secrets.
+// Category groups secrets. Color is a hex like "#4cc2ff"; empty means the
+// default accent.
 type Category struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Color string `json:"color,omitempty"`
 }
 
 // AuditEntry records one operation. It references secrets by ID only — never

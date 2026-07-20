@@ -1,180 +1,393 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import {
-  AddAllowlistEntry,
-  APIState,
-  GetAPIKey,
+  GetAPIStatus,
+  StartAPIServer,
+  StopAPIServer,
+  ShuffleAPIPort,
   GetSettings,
+  SetAPIAutoStart,
+  SetHTTPS,
+  AddAllowlistEntry,
   RemoveAllowlistEntry,
   RotateAPIKey,
-  SetAPIAutoStart,
-  ToggleServer,
 } from "../../wailsjs/go/main/App";
-import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { back } from "../store";
 
 const running = ref(false);
 const url = ref("");
+const port = ref(0);
 const autoStart = ref(false);
+const useHttps = ref(false);
+const tls = ref(false);
+const fingerprint = ref("");
 const allowlist = ref<string[]>([]);
-const newIP = ref("");
-const ipError = ref("");
-const serverError = ref("");
 const apiKey = ref("");
-const keyRevealed = ref(false);
+
+const newEntry = ref("");
+const entryError = ref("");
+const serverError = ref("");
+const busy = ref(false);
 const copied = ref("");
 
-async function refresh() {
-  const st = await APIState();
+const maskedKey = computed(() =>
+  apiKey.value
+    ? `${apiKey.value.slice(0, 6)}${"•".repeat(12)}${apiKey.value.slice(-4)}`
+    : "",
+);
+
+// The public-key pin isn't secret, but it's long — show it shortened.
+const shortFingerprint = computed(() =>
+  fingerprint.value
+    ? `${fingerprint.value.slice(0, 14)}…${fingerprint.value.slice(-6)}`
+    : "",
+);
+
+// A short, copy-paste snippet to hand an agent so it can get started. When TLS
+// is on, it carries the pin so the client can verify the self-signed cert.
+const instructions = computed(() => {
+  const lines = [
+    `Base URL: ${url.value}`,
+    `Header:   X-API-Key: ${apiKey.value}`,
+  ];
+  if (tls.value && fingerprint.value) {
+    lines.push(`TLS pin:  sha256//${fingerprint.value}  (self-signed — pin this)`);
+  }
+  lines.push(
+    `GET  /v1/ax     -> how it works + where to click (start here)`,
+    `POST /v1/unlock -> {"master_password":"..."} (open the vault first)`,
+    `GET  /v1/secrets -> list secrets (no passwords); /v1/secrets/{id} -> full`,
+    `POST /v1/ui/press -> {"testid":"add-secret"} (operate the real UI)`,
+  );
+  return lines.join("\n");
+});
+
+// A ready-to-run curl, with the pin baked in when serving HTTPS.
+const curlExample = computed(() =>
+  tls.value && fingerprint.value
+    ? `curl --pinnedpubkey "sha256//${fingerprint.value}" \\\n  -H "X-API-Key: ${apiKey.value}" \\\n  ${url.value}/v1/ax`
+    : `curl -H "X-API-Key: ${apiKey.value}" ${url.value}/v1/ax`,
+);
+
+function applyStatus(st: { running: boolean; url: string; port: number; tls: boolean; fingerprint: string }) {
   running.value = st.running;
   url.value = st.url;
-  const cfg = await GetSettings();
-  autoStart.value = cfg.apiAutoStart;
-  allowlist.value = cfg.apiAllowlist ?? [];
-  apiKey.value = await GetAPIKey();
+  port.value = st.port;
+  tls.value = st.tls;
+  fingerprint.value = st.fingerprint;
+}
+
+// refreshStatus re-reads the live server status; never throws (used in finally
+// blocks, where an exception would skip cleanup).
+async function refreshStatus() {
+  try {
+    applyStatus(await GetAPIStatus());
+  } catch {
+    /* keep the last known status */
+  }
+}
+
+async function refresh() {
+  applyStatus(await GetAPIStatus());
+  const s = await GetSettings();
+  autoStart.value = s.apiAutoStart;
+  useHttps.value = s.apiHttps;
+  allowlist.value = s.apiAllowlist ?? [];
+  apiKey.value = s.apiKey;
 }
 
 onMounted(refresh);
 
-async function toggle() {
+async function toggleServer() {
+  busy.value = true;
   serverError.value = "";
   try {
-    const st = await ToggleServer();
-    running.value = st.running;
-    url.value = st.url;
+    applyStatus(running.value ? await StopAPIServer() : await StartAPIServer());
   } catch (e) {
-    serverError.value = String(e);
-    await refresh();
+    serverError.value = typeof e === "string" ? e : "failed to toggle the server";
+  } finally {
+    busy.value = false;
   }
 }
 
-async function toggleAutoStart() {
-  autoStart.value = !autoStart.value;
-  await SetAPIAutoStart(autoStart.value);
-}
-
-async function addIP() {
-  ipError.value = "";
-  if (!newIP.value.trim()) return;
+async function shufflePort() {
+  busy.value = true;
+  serverError.value = "";
   try {
-    await AddAllowlistEntry(newIP.value.trim());
-    newIP.value = "";
-    await refresh();
+    applyStatus(await ShuffleAPIPort());
   } catch (e) {
-    ipError.value = String(e);
+    serverError.value = typeof e === "string" ? e : "failed to change the port";
+    await refreshStatus();
+  } finally {
+    busy.value = false;
   }
 }
 
-async function removeIP(cidr: string) {
-  await RemoveAllowlistEntry(cidr);
-  await refresh();
+async function onAutoStart(e: Event) {
+  const v = (e.target as HTMLInputElement).checked;
+  autoStart.value = v;
+  await SetAPIAutoStart(v);
 }
 
-async function rotate() {
-  apiKey.value = await RotateAPIKey();
-  keyRevealed.value = false;
+async function onHttps(e: Event) {
+  const v = (e.target as HTMLInputElement).checked;
+  useHttps.value = v;
+  serverError.value = "";
+  try {
+    // returns the fresh status (scheme + fingerprint) since the server restarts
+    applyStatus(await SetHTTPS(v));
+  } catch (err) {
+    serverError.value = typeof err === "string" ? err : "failed to switch the transport";
+    await refreshStatus();
+  }
 }
 
-async function copy(text: string, what: string) {
-  await ClipboardSetText(text);
-  copied.value = what;
-  setTimeout(() => (copied.value = ""), 1500);
+// Allowlist/key changes restart a running server; if that restart fails the
+// server ends up stopped, so each handler re-applies the fresh status and
+// surfaces the error instead of leaving a stale "Running" pill on screen.
+
+async function addEntry() {
+  entryError.value = "";
+  const val = newEntry.value.trim();
+  if (!val) return;
+  try {
+    allowlist.value = await AddAllowlistEntry(val);
+    newEntry.value = "";
+  } catch (e) {
+    entryError.value = typeof e === "string" ? e : "invalid IP/mask";
+  } finally {
+    await refreshStatus();
+  }
 }
 
-function maskedKey(): string {
-  if (keyRevealed.value) return apiKey.value;
-  return apiKey.value ? apiKey.value.slice(0, 6) + "…" + apiKey.value.slice(-4) : "";
+async function removeEntry(entry: string) {
+  entryError.value = "";
+  try {
+    allowlist.value = await RemoveAllowlistEntry(entry);
+  } catch (e) {
+    // e.g. "cannot remove the last allowlist entry"
+    entryError.value = typeof e === "string" ? e : "failed to remove the entry";
+  } finally {
+    await refreshStatus();
+  }
+}
+
+async function rotateKey() {
+  serverError.value = "";
+  try {
+    apiKey.value = await RotateAPIKey();
+  } catch (e) {
+    serverError.value = typeof e === "string" ? e : "failed to rotate the key";
+  } finally {
+    await refreshStatus();
+  }
+}
+
+async function copy(text: string, field: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    copied.value = field;
+    window.setTimeout(() => {
+      if (copied.value === field) copied.value = "";
+    }, 1500);
+  } catch {
+    /* clipboard may be unavailable; ignore */
+  }
 }
 </script>
 
 <template>
-  <div class="view">
-    <div class="view-title">
-      <button class="btn icon" data-testid="back" title="Back" @click="back">←</button>
-      REST API Server
+  <div class="view view--panel">
+    <div class="subheader">
+      <button class="icon-btn" title="Back" data-testid="back" @click="back">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2Z" />
+        </svg>
+      </button>
+      <h1 class="subheader-title">REST API Server</h1>
     </div>
 
-    <div class="panel">
-      <h3>Server</h3>
-      <div class="setting-row">
-        <span>
-          Status:
-          <strong data-testid="status">{{ running ? "Running" : "Stopped" }}</strong>
-          <span v-if="running" class="hint mono" style="margin-left: 8px">{{ url }}</span>
+    <div class="panel-body">
+      <!-- Start / stop -->
+      <div class="api-status">
+        <button
+          class="play-btn"
+          :class="{ running }"
+          :disabled="busy"
+          data-testid="toggle-server"
+          @click="toggleServer"
+        >
+          <svg v-if="running" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 6h12v12H6z" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7L8 5Z" />
+          </svg>
+          <span>{{ running ? "Stop" : "Start" }}</span>
+        </button>
+        <span class="status-pill" :class="{ on: running }" data-testid="status">
+          {{ running ? "Running" : "Stopped" }}
         </span>
-        <button class="btn primary" data-testid="toggle-server" @click="toggle">
-          {{ running ? "Stop" : "Start" }}
+      </div>
+      <p v-if="serverError" class="err" data-testid="server-error">
+        {{ serverError }}
+      </p>
+
+      <!-- Port -->
+      <div class="srow">
+        <span class="row-text">
+          <span class="row-label">Port <span class="mono">{{ port }}</span></span>
+          <span class="row-desc">Pick a free port (8900–8999)</span>
+        </span>
+        <button class="btn" :disabled="busy" data-testid="shuffle-port" @click="shufflePort">
+          Shuffle
         </button>
       </div>
-      <div class="setting-row">
-        <span>Start automatically with the app</span>
-        <button
-          class="switch"
-          :class="{ on: autoStart }"
-          data-testid="autostart"
-          role="switch"
-          :aria-checked="autoStart"
-          @click="toggleAutoStart"
-        ></button>
-      </div>
-      <p class="hint">
-        Off by default. While running, agents on allowed IPs can drive the vault with the key
-        below — including reading secrets once unlocked. Treat the key like a password.
-      </p>
-      <p v-if="serverError" class="error-text" data-testid="server-error">{{ serverError }}</p>
-    </div>
 
-    <div class="panel">
-      <h3>Allowed IPs (CIDR)</h3>
-      <table class="simple" data-testid="allowlist">
-        <tbody>
-          <tr v-for="cidr in allowlist" :key="cidr">
-            <td class="mono">{{ cidr }}</td>
-            <td style="text-align: right">
-              <button
-                class="btn icon danger"
-                :data-testid="'remove-' + cidr"
-                @click="removeIP(cidr)"
-              >
-                ✕
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="row" style="margin-top: 8px">
-        <input
-          v-model="newIP"
-          class="input mono"
-          placeholder="e.g. 192.168.0.0/24"
-          data-testid="new-ip"
-          @keydown.enter="addIP"
-        />
-        <button class="btn" data-testid="add-ip" @click="addIP">Add</button>
-      </div>
-      <p v-if="ipError" class="error-text" data-testid="ip-error">{{ ipError }}</p>
-    </div>
-
-    <div class="panel">
-      <h3>Access key</h3>
-      <div class="setting-row">
-        <span class="mono" data-testid="api-key">{{ maskedKey() }}</span>
-        <span>
-          <button class="btn" @click="keyRevealed = !keyRevealed">
-            {{ keyRevealed ? "Hide" : "Show" }}
-          </button>
-          <button class="btn" data-testid="copy-key" @click="copy(apiKey, 'key')">
-            {{ copied === "key" ? "Copied!" : "Copy" }}
-          </button>
-          <button class="btn" data-testid="rotate-key" @click="rotate">Rotate</button>
+      <!-- Auto-start -->
+      <label class="srow switch-row">
+        <span class="row-text">
+          <span class="row-label">Start automatically</span>
+          <span class="row-desc">Launch the server when the app starts</span>
         </span>
-      </div>
-      <p class="hint">
-        Send it as the <span class="mono">X-API-Key</span> header. Start at
-        <span class="mono">GET /v1/ax</span> — it documents the whole API, including
-        <span class="mono">/v1/unlock</span>, <span class="mono">/v1/secrets</span> and the
-        <span class="mono">/v1/ui/*</span> bridge that operates this very window.
-      </p>
+        <input
+          type="checkbox"
+          class="switch"
+          role="switch"
+          :checked="autoStart"
+          data-testid="autostart"
+          @change="onAutoStart"
+        />
+      </label>
+
+      <!-- Transport: HTTP or HTTPS -->
+      <label class="srow switch-row">
+        <span class="row-text">
+          <span class="row-label">Use HTTPS</span>
+          <span class="row-desc">Encrypt the connection (off = plain HTTP)</span>
+        </span>
+        <input
+          type="checkbox"
+          class="switch"
+          role="switch"
+          :checked="useHttps"
+          data-testid="use-https"
+          @change="onHttps"
+        />
+      </label>
+
+      <!-- Allowlist -->
+      <section class="field">
+        <label class="field-label">Allowed IPs (with mask)</label>
+        <table class="ip-table" data-testid="allowlist">
+          <tbody>
+            <tr v-for="cidr in allowlist" :key="cidr">
+              <td class="mono">{{ cidr }}</td>
+              <td class="ip-actions">
+                <button
+                  class="icon-btn small danger"
+                  title="Remove"
+                  :data-testid="`remove-${cidr}`"
+                  @click="removeEntry(cidr)"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z" />
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            <tr v-if="allowlist.length === 0">
+              <td class="muted" colspan="2">No allowed IPs</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="add-row">
+          <input
+            v-model="newEntry"
+            class="text-input mono"
+            placeholder="e.g. 192.168.0.0/24"
+            data-testid="new-ip"
+            @keyup.enter="addEntry"
+          />
+          <button class="btn" data-testid="add-ip" :disabled="!newEntry.trim()" @click="addEntry">
+            Add
+          </button>
+        </div>
+        <p v-if="entryError" class="err" data-testid="ip-error">{{ entryError }}</p>
+      </section>
+
+      <!-- Agent instructions (URL + key + starting endpoints) -->
+      <section class="field">
+        <div class="field-head">
+          <label class="field-label">Agent instructions</label>
+          <button
+            class="icon-btn small"
+            title="Copy"
+            data-testid="copy-instructions"
+            @click="copy(instructions, 'instructions')"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z" />
+            </svg>
+          </button>
+        </div>
+        <pre class="instructions-box mono" data-testid="agent-instructions">{{ instructions }}</pre>
+        <span v-if="copied === 'instructions'" class="copied">Copied!</span>
+      </section>
+
+      <!-- Key -->
+      <section class="field">
+        <label class="field-label">Access key</label>
+        <div class="copy-field">
+          <span class="value-box mono" data-testid="api-key">{{ maskedKey }}</span>
+          <button class="icon-btn" title="Copy key" data-testid="copy-key" @click="copy(apiKey, 'key')">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z" />
+            </svg>
+          </button>
+          <button class="icon-btn" title="Generate new key" data-testid="rotate-key" @click="rotateKey">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z" />
+            </svg>
+          </button>
+        </div>
+        <span v-if="copied === 'key'" class="copied">Copied!</span>
+      </section>
+
+      <!-- Certificate pin (only when serving HTTPS) -->
+      <section v-if="tls && fingerprint" class="field" data-testid="tls-section">
+        <label class="field-label">Certificate pin (HTTPS)</label>
+        <div class="copy-field">
+          <span class="value-box mono" data-testid="fingerprint">{{ shortFingerprint }}</span>
+          <button
+            class="icon-btn"
+            title="Copy pin"
+            data-testid="copy-fingerprint"
+            @click="copy('sha256//' + fingerprint, 'fp')"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z" />
+            </svg>
+          </button>
+        </div>
+        <span v-if="copied === 'fp'" class="copied">Copied!</span>
+        <p class="row-desc pin-hint">Self-signed — the client pins this key (no CA needed).</p>
+        <div class="field-head">
+          <label class="field-label">Test command</label>
+          <button
+            class="icon-btn small"
+            title="Copy"
+            data-testid="copy-curl"
+            @click="copy(curlExample, 'curl')"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z" />
+            </svg>
+          </button>
+        </div>
+        <pre class="instructions-box mono" data-testid="curl-example">{{ curlExample }}</pre>
+        <span v-if="copied === 'curl'" class="copied">Copied!</span>
+      </section>
     </div>
   </div>
 </template>

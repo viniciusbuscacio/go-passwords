@@ -134,20 +134,52 @@ func (v *Vault) categoryByID(id string) (Category, error) {
 	return Category{}, ErrNotFound
 }
 
-// ListCategories returns all categories.
+// ListCategories returns all categories (never nil, so JSON stays []).
 func (v *Vault) ListCategories() []Category {
-	return append([]Category(nil), v.data.Categories...)
+	out := make([]Category, 0, len(v.data.Categories))
+	return append(out, v.data.Categories...)
 }
 
-// AddCategory creates a category.
-func (v *Vault) AddCategory(name, actor string) (Category, error) {
+// CategoryPalette is the set of colors offered by the UIs — Fluent-ish
+// pastels of similar luminance, harmonized with the app's accent blue, all
+// legible as tints on the family's dark and light themes. Auto-assign order
+// keeps the first few categories maximally distinct.
+var CategoryPalette = []string{
+	"#4cc2ff", // azul (accent)
+	"#3fbf6f", // verde
+	"#f7a350", // laranja
+	"#c58fff", // roxo
+	"#f47068", // coral
+	"#4dd0c4", // teal
+	"#f2c94c", // dourado
+	"#ff7eb6", // rosa
+}
+
+// AddCategory creates a category. An empty color auto-assigns the next
+// palette color.
+func (v *Vault) AddCategory(name, color, actor string) (Category, error) {
 	if strings.TrimSpace(name) == "" {
 		return Category{}, errors.New("name is required")
 	}
-	c := Category{ID: uuid.NewString(), Name: name}
+	if color == "" {
+		color = CategoryPalette[len(v.data.Categories)%len(CategoryPalette)]
+	}
+	c := Category{ID: uuid.NewString(), Name: name, Color: color}
 	v.data.Categories = append(v.data.Categories, c)
 	v.audit(actor, "category_add", "")
 	return c, nil
+}
+
+// SetCategoryColor changes a category's color.
+func (v *Vault) SetCategoryColor(id, color, actor string) error {
+	for i := range v.data.Categories {
+		if v.data.Categories[i].ID == id {
+			v.data.Categories[i].Color = color
+			v.audit(actor, "category_color", "")
+			return nil
+		}
+	}
+	return fmt.Errorf("category %s: %w", id, ErrNotFound)
 }
 
 // RenameCategory changes a category's name.
@@ -188,9 +220,10 @@ func (v *Vault) audit(actor, action, secretID string) {
 	}
 }
 
-// AuditLog returns the audit entries, newest last.
+// AuditLog returns the audit entries, newest last (never nil, so JSON stays []).
 func (v *Vault) AuditLog() []AuditEntry {
-	return append([]AuditEntry(nil), v.data.Audit...)
+	out := make([]AuditEntry, 0, len(v.data.Audit))
+	return append(out, v.data.Audit...)
 }
 
 // RecordUnlock appends an unlock event (call after Open succeeds) so the

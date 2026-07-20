@@ -8,10 +8,13 @@ import {
 } from "../wailsjs/runtime/runtime";
 import { ui, go, lockNow, loadSettings } from "./store";
 import { initUIBridge } from "./uibridge";
+import Toasts from "./Toasts.vue";
 import UnlockView from "./views/UnlockView.vue";
 import VaultView from "./views/VaultView.vue";
 import SettingsView from "./views/SettingsView.vue";
 import ApiServerView from "./views/ApiServerView.vue";
+import MasterPasswordView from "./views/MasterPasswordView.vue";
+import CategoriesView from "./views/CategoriesView.vue";
 
 onMounted(async () => {
   // Apply the persisted theme BEFORE the window is shown (StartHidden), so
@@ -25,7 +28,7 @@ onMounted(async () => {
 
 <template>
   <div class="window">
-    <header class="titlebar" style="--wails-draggable: drag">
+    <header class="titlebar" data-testid="titlebar" style="--wails-draggable: drag">
       <div class="brand">
         <!-- Lucide "key-round" (ISC) — the app's identity glyph per go-design. -->
         <svg
@@ -70,7 +73,6 @@ onMounted(async () => {
           </svg>
         </button>
         <button
-          v-if="ui.view !== 'settings' && ui.view !== 'api'"
           class="win-btn"
           title="Settings"
           data-testid="open-settings"
@@ -123,5 +125,9 @@ onMounted(async () => {
     <VaultView v-else-if="ui.view === 'vault'" />
     <SettingsView v-else-if="ui.view === 'settings'" />
     <ApiServerView v-else-if="ui.view === 'api'" />
+    <MasterPasswordView v-else-if="ui.view === 'masterpassword'" />
+    <CategoriesView v-else-if="ui.view === 'categories'" />
+
+    <Toasts />
   </div>
 </template>

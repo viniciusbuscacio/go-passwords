@@ -370,7 +370,7 @@ func cmdCategories(a args) {
 		if len(rest) < 1 {
 			fail("usage: go-pw-cli categories add <name>")
 		}
-		c, err := v.AddCategory(rest[0], actor)
+		c, err := v.AddCategory(rest[0], "", actor)
 		if err != nil {
 			fail("%v", err)
 		}

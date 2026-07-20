@@ -118,6 +118,7 @@ func (a *App) appInfo() any {
 					Name:        "Title bar",
 					Description: "Always visible, on every view.",
 					Children: []axNode{
+						{Role: "button", Name: "API server indicator", Testid: "api-indicator", Action: "open the REST API server settings (green dot, visible only while this server is running)", Risk: riskNavigation},
 						{Role: "button", Name: "Lock", Testid: "lock-now", Action: "lock the vault immediately (visible while unlocked)", Risk: riskSafe},
 						{Role: "button", Name: "Settings", Testid: "open-settings", Action: "open the Settings view", Risk: riskNavigation},
 						{Role: "button", Name: "Minimize", Testid: "window-minimize", Action: "minimize the window", Risk: riskSafe},

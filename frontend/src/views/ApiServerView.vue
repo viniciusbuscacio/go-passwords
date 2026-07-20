@@ -237,7 +237,7 @@ async function copy(text: string, field: string) {
       <div class="srow">
         <span class="row-text">
           <span class="row-label">Port <span class="mono">{{ port }}</span></span>
-          <span class="row-desc">Pick a free port (8900–8999)</span>
+          <span class="row-desc">Pick a free port (8000–8999)</span>
         </span>
         <button class="btn" :disabled="busy" data-testid="shuffle-port" @click="shufflePort">
           Shuffle

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	mrand "math/rand/v2"
 	"os"
 	"path/filepath"
 )
@@ -38,8 +39,13 @@ type Config struct {
 	UpdateLastCheck  string `json:"updateLastAutoCheck"`
 }
 
-// DefaultPort range for go-passwords (family: go-calc 87xx, go-notepad 88xx).
-const defaultPort = 8940
+// randomPort picks the install's default API port at random from the family
+// range (8000–8999, shared by every go-apps app) — random defaults make two
+// apps landing on the same port near-impossible, and a collision just makes
+// Start fail with a clear error the user resolves with Shuffle.
+func randomPort() int {
+	return 8000 + mrand.IntN(1000)
+}
 
 func Default() Config {
 	return Config{
@@ -52,7 +58,7 @@ func Default() Config {
 		GeneratorSymbols: true,
 		ToastSeconds:     3,
 		APIAutoStart:     false,
-		APIPort:          defaultPort,
+		APIPort:          randomPort(),
 		APIKey:           GenerateKey(),
 		APIAllowlist:     []string{"127.0.0.1/32"},
 	}
@@ -113,7 +119,7 @@ func Load() Config {
 		cfg.APIKey = GenerateKey()
 	}
 	if cfg.APIPort == 0 {
-		cfg.APIPort = defaultPort
+		cfg.APIPort = randomPort()
 	}
 	if len(cfg.APIAllowlist) == 0 {
 		cfg.APIAllowlist = []string{"127.0.0.1/32"}

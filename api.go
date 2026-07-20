@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	mrand "math/rand/v2"
 	"net"
 	"net/http"
 
@@ -89,30 +90,37 @@ func (a *App) StopAPIServer() (APIStatus, error) {
 	return a.APIState(), err
 }
 
-// Port range of go-passwords in the family (calc 87xx, notepad 88xx).
+// API port range the shuffle button picks from: 8000–8999, shared by the
+// whole go-apps family. Ports are picked at random, so collisions are
+// near-impossible; if one ever happens, Start fails with a clear error and
+// the user shuffles.
 const (
-	portRangeBase = 8900
-	portRangeSpan = 100
+	portRangeBase = 8000
+	portRangeSpan = 1000 // 8000..8999
 )
 
-// pickFreePort returns a bindable port in the family range, different from
-// current when possible.
-func pickFreePort(current int, host string) int {
-	for i := 0; i < portRangeSpan; i++ {
-		p := portRangeBase + i
-		if p == current {
+// pickFreePort returns a random bindable port in the range, avoiding exclude.
+// It falls back to any random port ≠ exclude if none probe as free.
+func pickFreePort(exclude int, host string) int {
+	for i := 0; i < 40; i++ {
+		p := portRangeBase + mrand.IntN(portRangeSpan)
+		if p == exclude {
 			continue
 		}
-		l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, p))
-		if err == nil {
-			l.Close()
+		if ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, p)); err == nil {
+			_ = ln.Close()
 			return p
 		}
 	}
-	return current
+	next := exclude
+	for next == exclude {
+		next = portRangeBase + mrand.IntN(portRangeSpan)
+	}
+	return next
 }
 
-// ShuffleAPIPort picks a random free port and restarts the server if running.
+// ShuffleAPIPort picks a random free port in 8000–8999 and restarts the
+// server if running.
 func (a *App) ShuffleAPIPort() (APIStatus, error) {
 	cur := a.snapshot()
 	port := pickFreePort(cur.APIPort, apiserver.BindHost(cur.APIAllowlist))

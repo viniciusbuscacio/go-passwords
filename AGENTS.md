@@ -18,7 +18,8 @@ App specifics:
   `tools/recover/` are tested in CI and must keep opening current vaults.
 - Secrets never reach the frontend unasked: the UI bridge reports password
   fields by length only; clipboard copy happens in Go (`CopySecretField`).
-- REST API port range **8900–8999**; endpoints under `/v1/secrets`,
+- REST API port: family-shared range **8000–8999**, random default per
+  install; endpoints under `/v1/secrets`,
   `/v1/categories`, `/v1/unlock|lock`, `/v1/generate`, `/v1/export|import`,
   `/v1/audit`. A locked vault answers `423 Locked`.
 - CLI (`cmd/go-pw-cli`) is stateless per invocation; env vars `GO_PW_VAULT`

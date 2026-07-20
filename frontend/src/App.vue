@@ -6,7 +6,7 @@ import {
   WindowToggleMaximise,
   WindowShow,
 } from "../wailsjs/runtime/runtime";
-import { ui, api, go, lockNow, loadSettings } from "./store";
+import { ui, api, go, lockNow, loadSettings, bumpZoom, resetZoom } from "./store";
 import { initUIBridge } from "./uibridge";
 import Toasts from "./Toasts.vue";
 import UnlockView from "./views/UnlockView.vue";
@@ -16,11 +16,39 @@ import ApiServerView from "./views/ApiServerView.vue";
 import MasterPasswordView from "./views/MasterPasswordView.vue";
 import CategoriesView from "./views/CategoriesView.vue";
 
+// Ctrl/Cmd +/-/0 zooms the app content (family pattern from go-notepad).
+// preventDefault stops the webview from zooming the page itself — the title
+// bar must never scale.
+function onKey(e: KeyboardEvent) {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const k = e.key;
+  if (k === "=" || k === "+") {
+    e.preventDefault();
+    bumpZoom(+1);
+  } else if (k === "-" || k === "_") {
+    e.preventDefault();
+    bumpZoom(-1);
+  } else if (k === "0") {
+    e.preventDefault();
+    resetZoom();
+  }
+}
+
+// Ctrl/Cmd + mouse wheel zooms too (up = bigger), like every browser/editor.
+function onWheel(e: WheelEvent) {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  bumpZoom(e.deltaY < 0 ? +1 : -1);
+}
+
 onMounted(async () => {
   // Apply the persisted theme BEFORE the window is shown (StartHidden), so
   // the user never sees a default-theme flash (family pattern).
   await loadSettings();
   initUIBridge();
+  window.addEventListener("keydown", onKey);
+  // passive:false so preventDefault can stop the webview's page zoom.
+  window.addEventListener("wheel", onWheel, { passive: false });
   await nextTick();
   WindowShow();
 });
@@ -133,12 +161,14 @@ onMounted(async () => {
       </div>
     </header>
 
-    <UnlockView v-if="ui.view === 'unlock'" />
-    <VaultView v-else-if="ui.view === 'vault'" />
-    <SettingsView v-else-if="ui.view === 'settings'" />
-    <ApiServerView v-else-if="ui.view === 'api'" />
-    <MasterPasswordView v-else-if="ui.view === 'masterpassword'" />
-    <CategoriesView v-else-if="ui.view === 'categories'" />
+    <main class="zoom-host">
+      <UnlockView v-if="ui.view === 'unlock'" />
+      <VaultView v-else-if="ui.view === 'vault'" />
+      <SettingsView v-else-if="ui.view === 'settings'" />
+      <ApiServerView v-else-if="ui.view === 'api'" />
+      <MasterPasswordView v-else-if="ui.view === 'masterpassword'" />
+      <CategoriesView v-else-if="ui.view === 'categories'" />
+    </main>
 
     <Toasts />
   </div>

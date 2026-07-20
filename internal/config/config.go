@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Theme            string `json:"theme"`   // "dark" | "light"
 	Opacity          int    `json:"opacity"` // window opacity, 20..100
+	Zoom             int    `json:"zoom"`    // content zoom percent, 50..200
 	AutoLockEnabled  bool   `json:"autoLockEnabled"`
 	AutoLockMinutes  int    `json:"autoLockMinutes"`
 	LastVault        string   `json:"lastVault"`
@@ -44,6 +45,7 @@ func Default() Config {
 	return Config{
 		Theme:            "dark",
 		Opacity:          100,
+		Zoom:             100,
 		AutoLockEnabled:  true,
 		AutoLockMinutes:  5,
 		GeneratorLength:  16,
@@ -97,6 +99,9 @@ func Load() Config {
 	}
 	if cfg.Opacity < 20 || cfg.Opacity > 100 {
 		cfg.Opacity = 100
+	}
+	if cfg.Zoom < 50 || cfg.Zoom > 200 {
+		cfg.Zoom = 100
 	}
 	if cfg.ToastSeconds < 0 {
 		cfg.ToastSeconds = 0

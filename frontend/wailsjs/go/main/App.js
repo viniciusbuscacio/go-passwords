@@ -162,6 +162,10 @@ export function SetUpdateAutoCheck(arg1) {
   return window['go']['main']['App']['SetUpdateAutoCheck'](arg1);
 }
 
+export function SetZoom(arg1) {
+  return window['go']['main']['App']['SetZoom'](arg1);
+}
+
 export function ShuffleAPIPort() {
   return window['go']['main']['App']['ShuffleAPIPort']();
 }

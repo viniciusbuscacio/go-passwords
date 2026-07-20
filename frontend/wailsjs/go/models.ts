@@ -3,6 +3,7 @@ export namespace config {
 	export class Config {
 	    theme: string;
 	    opacity: number;
+	    zoom: number;
 	    autoLockEnabled: boolean;
 	    autoLockMinutes: number;
 	    lastVault: string;
@@ -28,6 +29,7 @@ export namespace config {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.theme = source["theme"];
 	        this.opacity = source["opacity"];
+	        this.zoom = source["zoom"];
 	        this.autoLockEnabled = source["autoLockEnabled"];
 	        this.autoLockMinutes = source["autoLockMinutes"];
 	        this.lastVault = source["lastVault"];

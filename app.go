@@ -499,6 +499,17 @@ func (a *App) SetOpacity(percent int) error {
 	return a.mutate(func(c *config.Config) { c.Opacity = percent })
 }
 
+// SetZoom persists the content zoom (Ctrl +/- in the frontend).
+func (a *App) SetZoom(percent int) error {
+	if percent < 50 {
+		percent = 50
+	}
+	if percent > 200 {
+		percent = 200
+	}
+	return a.mutate(func(c *config.Config) { c.Zoom = percent })
+}
+
 func (a *App) SetToastSeconds(sec int) error {
 	if sec < 0 {
 		sec = 0

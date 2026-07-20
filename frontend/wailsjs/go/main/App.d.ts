@@ -84,6 +84,8 @@ export function SetToastSeconds(arg1:number):Promise<void>;
 
 export function SetUpdateAutoCheck(arg1:boolean):Promise<void>;
 
+export function SetZoom(arg1:number):Promise<void>;
+
 export function ShuffleAPIPort():Promise<main.APIStatus>;
 
 export function SkipUpdateVersion():Promise<void>;

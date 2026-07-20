@@ -3,6 +3,7 @@ import {
   GetSettings,
   SetTheme,
   SetOpacity,
+  SetZoom,
   IsUnlocked,
   LockVault,
   Version,
@@ -33,6 +34,7 @@ export const ui = reactive({
   backTo: "vault" as View,
   theme: "dark",
   opacity: 100,
+  zoom: 100,
   unlocked: false,
   version: "",
   // Bumped whenever the vault content changes from outside the current view
@@ -88,6 +90,39 @@ export async function setOpacity(percent: number) {
   await SetOpacity(ui.opacity);
 }
 
+// ---- Content zoom (Ctrl/Cmd +/-/0 and Ctrl+wheel, family pattern from
+// go-notepad). Scales the app content only — never the title bar — via the
+// --ui-zoom variable the .zoom-host wrapper reads.
+
+export const ZOOM_MIN = 50;
+export const ZOOM_MAX = 200;
+export const ZOOM_STEP = 10;
+
+export function applyZoom(percent: number) {
+  const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(percent)));
+  ui.zoom = clamped;
+  document.documentElement.style.setProperty("--ui-zoom", String(clamped / 100));
+}
+
+// setZoom applies immediately and persists debounced (the shortcut can fire
+// many times per second).
+let zoomTimer: number | undefined;
+export function setZoom(percent: number) {
+  applyZoom(percent);
+  clearTimeout(zoomTimer);
+  zoomTimer = window.setTimeout(() => {
+    SetZoom(ui.zoom).catch(() => {});
+  }, 300);
+}
+
+export function bumpZoom(delta: number) {
+  setZoom(ui.zoom + delta * ZOOM_STEP);
+}
+
+export function resetZoom() {
+  setZoom(100);
+}
+
 export async function lockNow() {
   await LockVault();
   // The vault:locked event flips the view; do it here too for immediacy.
@@ -99,6 +134,7 @@ export async function loadSettings() {
   const cfg = await GetSettings();
   applyTheme(cfg.theme === "light" ? "light" : "dark");
   applyOpacity(cfg.opacity || 100);
+  applyZoom(cfg.zoom || 100);
   configureToasts(cfg.toastSeconds ?? 3);
   ui.version = await Version();
   ui.unlocked = await IsUnlocked();

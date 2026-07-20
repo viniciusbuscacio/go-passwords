@@ -69,6 +69,9 @@ func (a *App) startup(ctx context.Context) {
 	if cfg.APIAutoStart {
 		_ = a.startServer()
 	}
+	// Tell the frontend the boot-time server state (auto-start or not) — it
+	// drives the titlebar API indicator.
+	a.emitAPIState()
 }
 
 // UIAck is called by the frontend to report the resulting screen state after

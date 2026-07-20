@@ -6,7 +6,7 @@ import {
   WindowToggleMaximise,
   WindowShow,
 } from "../wailsjs/runtime/runtime";
-import { ui, go, lockNow, loadSettings } from "./store";
+import { ui, api, go, lockNow, loadSettings } from "./store";
 import { initUIBridge } from "./uibridge";
 import Toasts from "./Toasts.vue";
 import UnlockView from "./views/UnlockView.vue";
@@ -50,6 +50,18 @@ onMounted(async () => {
       </div>
 
       <div class="win-controls" style="--wails-draggable: no-drag">
+        <!-- Shown only while the REST server has a port open — a password
+             manager listening on the network is something the user should
+             always be able to see at a glance. -->
+        <button
+          v-if="api.running"
+          class="win-btn"
+          :title="`REST API server is running on port ${api.port} — click to configure`"
+          data-testid="api-indicator"
+          @click="go('api')"
+        >
+          <span class="api-dot" aria-hidden="true"></span>
+        </button>
         <button
           v-if="ui.unlocked"
           class="win-btn"

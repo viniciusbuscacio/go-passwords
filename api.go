@@ -9,6 +9,7 @@ import (
 	apiserver "github.com/viniciusbuscacio/go-apiserver"
 	"github.com/viniciusbuscacio/go-passwords/internal/config"
 	"github.com/viniciusbuscacio/go-passwords/internal/vault"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const actorAPI = "api"
@@ -46,6 +47,14 @@ func (a *App) APIState() APIStatus {
 	}
 }
 
+// emitAPIState pushes the live server status to the frontend ("api:state"),
+// so passive UI like the titlebar indicator stays honest without polling.
+func (a *App) emitAPIState() {
+	if a.ctx != nil {
+		wailsruntime.EventsEmit(a.ctx, "api:state", a.APIState())
+	}
+}
+
 func (a *App) startServer() error {
 	dir, err := config.ConfigDir()
 	if err != nil {
@@ -70,11 +79,13 @@ func (a *App) GetAPIStatus() APIStatus {
 // StartAPIServer / StopAPIServer back the play button.
 func (a *App) StartAPIServer() (APIStatus, error) {
 	err := a.startServer()
+	a.emitAPIState()
 	return a.APIState(), err
 }
 
 func (a *App) StopAPIServer() (APIStatus, error) {
 	err := a.server.Stop()
+	a.emitAPIState()
 	return a.APIState(), err
 }
 
@@ -183,6 +194,7 @@ func (a *App) RemoveAllowlistEntry(entry string) ([]string, error) {
 }
 
 func (a *App) applyIfRunning() error {
+	defer a.emitAPIState()
 	if !a.server.Running() {
 		return nil
 	}

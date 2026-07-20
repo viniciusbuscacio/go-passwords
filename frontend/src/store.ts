@@ -6,6 +6,7 @@ import {
   IsUnlocked,
   LockVault,
   Version,
+  GetAPIStatus,
   GetUpdateInfo,
   CheckForUpdates,
   InstallUpdate,
@@ -39,8 +40,18 @@ export const ui = reactive({
   refresh: 0,
 });
 
+// Live REST server status, mirrored from Go (api:state event). Drives the
+// titlebar indicator: a green dot only while a port is actually open.
+export const api = reactive({
+  running: false,
+  port: 0,
+  url: "",
+});
+
 export function go(view: View) {
-  if (view === "settings") {
+  // Settings and the API sub-view can be entered from the titlebar; remember
+  // where to land after "back".
+  if (view === "settings" || view === "api") {
     if (ui.view === "unlock" || ui.view === "vault") ui.backTo = ui.view;
   }
   ui.view = view;
@@ -105,6 +116,8 @@ export async function loadSettings() {
   EventsOn("vault:changed", () => {
     ui.refresh++;
   });
+  EventsOn("api:state", (s: object) => Object.assign(api, s));
+  Object.assign(api, await GetAPIStatus());
 
   update.autoCheck = cfg.updateAutoCheck;
   Object.assign(update, await GetUpdateInfo());

@@ -19,6 +19,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
+      # frontend/dist is gitignored (Wails builds it); the root package's
+      # go:embed needs it to exist for vet/test to compile.
+      - name: Stub frontend/dist
+        shell: bash
+        run: mkdir -p frontend/dist && echo "ci stub" > frontend/dist/index.html
       - name: go vet
         run: go vet ./...
       - name: go test

@@ -25,4 +25,7 @@ App specifics:
 - CLI (`cmd/go-pw-cli`) is stateless per invocation; env vars `GO_PW_VAULT`
   and `GO_PW_MASTER_PASSWORD`.
 - Content zoom via `.zoom-host` (Ctrl +/−/0, Ctrl+wheel), 50–200%.
-- Gate before commit: `go vet ./...`, `go test ./...`, `wails build`.
+- Smoke suite: `go run ./tools/smoke -master-password <pw>` with the app
+  open, the server on and a THROWAWAY test vault as the last-opened vault
+  (the suite writes and deletes a secret; never point it at a real vault).
+- Gate before commit: `go vet ./...`, `go test ./...`, `wails build`, smoke.
